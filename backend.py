@@ -1,10 +1,34 @@
 from transformers import AutoTokenizer
 import torch
 from model import Seq2SeqEncDec
-
-
+import config
+from fastapi import FastAPI,HTTPException
+from pydantic import BaseModel
+import pickle
 
 src_sent_tokenizer=AutoTokenizer.from_pretrained("google-T5/T5-base")
+
+if torch.cuda.is_available():
+    device=torch.device("cuda")
+else:
+    device=torch.device("cpu")
+
+
+network = Seq2SeqEncDec(config.vs,config.vd,128).to(device)
+
+if torch.cuda.is_available():
+    network.load_state_dict(torch.load("model.pth",map_location="cuda:0")) # is line me hum apne sare parameters network me daal rahe hai or map-location is liye taki sara inference logic paas kar sake
+else:
+    network.load_state_dict(torch.load("model.pth",map_location=torch.device("cpu")))
+
+
+network.eval()
+
+with open("dst-lang-vocab2idx.pkl","rb") as file_handle:
+    vd=pickle.load(file_handle)
+
+with open("dst-lang-idx2vocab.pkl","rb") as file_handle:
+    hindi_idx2vocab=pickle.load(file_handle)
 
 def generate_translation(eng_sentence):
 
@@ -60,3 +84,21 @@ def generate_translation(eng_sentence):
         hindi_translated_sentence += " " + hindi_idx2vocab[generated_token_id.item()]
 
     return hindi_translated_sentence
+
+
+
+class TranslateRequest(BaseModel):
+    text:str
+
+app=FastAPI()
+
+@app.post("/translate")
+def translate(request: TranslateRequest):  #datatype: variable
+
+    if not request.text:
+        raise HTTPException(status_code=400,detail="The engish sentence to be translated is missing")
+    try:
+        hindi_translated_sentence= generate_translation(request.text)
+        return {"hindi translation": hindi_translated_sentence}
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
