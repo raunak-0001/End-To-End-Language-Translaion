@@ -5,6 +5,7 @@ import config
 from fastapi import FastAPI,HTTPException
 from pydantic import BaseModel
 import pickle
+import torch.nn.functional as F
 
 src_sent_tokenizer=AutoTokenizer.from_pretrained("google-T5/T5-base")
 
@@ -65,7 +66,7 @@ def generate_translation(eng_sentence):
         hidden_decoder_output = hidden_decoder_output.to(device)
         hidden_decoder_cell_state = hidden_decoder_cell_state.to(device)
         
-    for i in range(nd-1):
+    for i in range(config.nd-1):
         
         decoder_first_time_step_output, (hidden_decoder_output, hidden_decoder_cell_state) = network.decoder(generated_token_id,
                                                                                                 hidden_decoder_output,
