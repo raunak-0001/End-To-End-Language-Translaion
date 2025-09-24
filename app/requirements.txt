@@ -1,0 +1,8 @@
+indic-nlp-library
+pandas
+numpy
+transformers
+fastapi
+uvicorn
+pydantic
+requests
